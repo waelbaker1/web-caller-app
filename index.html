@@ -73,17 +73,21 @@
       let activeCall;
 
       async function setupDevice() {
-        if (typeof Twilio === 'undefined') {
+        if (typeof Twilio === "undefined") {
           document.getElementById("statusMessage").innerText =
             "Twilio Library not loaded. Please check your internet or disable adblockers.";
-          console.error("Twilio object is not defined. Script might be blocked.");
+          console.error(
+            "Twilio object is not defined. Script might be blocked.",
+          );
           return;
         }
         document.getElementById("statusMessage").innerText =
           "Requesting microphone...";
         try {
           // Get the security token from your server.js
-          const response = await fetch("/token");
+          const response = await fetch(
+            "https://web-caller-56r9.onrender.com//token",
+          );
           const data = await response.json();
 
           // Initialize the Twilio Device
@@ -126,8 +130,10 @@
           // Catch Twilio specific call errors
           activeCall.on("error", (twilioError) => {
             console.error("Twilio Call Error Details:", twilioError);
-            const msg = twilioError ? (twilioError.message || "Unknown Error") : "Call failed";
-            const code = twilioError ? (twilioError.code || "No Code") : "";
+            const msg = twilioError
+              ? twilioError.message || "Unknown Error"
+              : "Call failed";
+            const code = twilioError ? twilioError.code || "No Code" : "";
             document.getElementById("statusMessage").innerText =
               "Twilio Error: " + msg + " (Code: " + code + ")";
             resetUI();
