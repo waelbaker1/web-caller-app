@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Caller</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <!-- Use a working public CDN for the Twilio Voice SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@twilio/voice-sdk@2.18.0/dist/twilio.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f3f4f6;
+        margin: 0;
+      }
+      .dial-container {
+        background: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 300px;
+      }
+      input {
+        padding: 12px;
+        margin: 15px 0;
+        width: 90%;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      button {
+        background-color: #28a745;
+        color: white;
+        padding: 12px 20px;
+        border: none;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        width: 100%;
+        margin-bottom: 10px;
+      }
+      button.hangup {
+        background-color: #dc3545;
+        display: none;
+      }
+      #statusMessage {
+        margin-top: 15px;
+        font-size: 14px;
+        color: #555;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dial-container">
+      <h2>Make a Live Call</h2>
+      <input
+        type="text"
+        id="phoneNumber"
+        placeholder="Enter number (e.g., +91...)"
+      />
+      <button id="callBtn" onclick="makeCall()">Call Now</button>
+      <button id="hangupBtn" class="hangup" onclick="endCall()">Hang Up</button>
+      <p id="statusMessage">Ready</p>
+    </div>
+    <script>
+      let device;
+      let activeCall;
+
+      async function setupDevice() {
+        if (typeof Twilio === 'undefined') {
+          document.getElementById("statusMessage").innerText =
+            "Twilio Library not loaded. Please check your internet or disable adblockers.";
+          console.error("Twilio object is not defined. Script might be blocked.");
+          return;
+        }
+        document.getElementById("statusMessage").innerText =
+          "Requesting microphone...";
+        try {
+          // Get the security token from your server.js
+          const response = await fetch("/token");
+          const data = await response.json();
+
+          // Initialize the Twilio Device
+          device = new Twilio.Device(data.token, {
+            codecPreferences: ["opus", "pcmu"],
+          });
+          await device.register();
+          console.log("Microphone ready!");
+        } catch (error) {
+          document.getElementById("statusMessage").innerText =
+            "Error accessing microphone.";
+          console.error(error);
+        }
+      }
+
+      async function makeCall() {
+        const number = document.getElementById("phoneNumber").value;
+        if (!number) return alert("Enter a number!");
+
+        try {
+          if (!device) await setupDevice();
+
+          document.getElementById("statusMessage").innerText = "Calling...";
+
+          // Attempt to connect the call
+          activeCall = await device.connect({ params: { To: number } });
+
+          document.getElementById("callBtn").style.display = "none";
+          document.getElementById("hangupBtn").style.display = "block";
+
+          activeCall.on("accept", () => {
+            document.getElementById("statusMessage").innerText =
+              "Connected! You can speak now.";
+          });
+
+          activeCall.on("disconnect", () => {
+            resetUI();
+          });
+
+          // Catch Twilio specific call errors
+          activeCall.on("error", (twilioError) => {
+            console.error("Twilio Call Error Details:", twilioError);
+            const msg = twilioError ? (twilioError.message || "Unknown Error") : "Call failed";
+            const code = twilioError ? (twilioError.code || "No Code") : "";
+            document.getElementById("statusMessage").innerText =
+              "Twilio Error: " + msg + " (Code: " + code + ")";
+            resetUI();
+          });
+
+          // Device errors
+          device.on("error", (deviceError) => {
+            console.error("Twilio Device Error:", deviceError);
+            document.getElementById("statusMessage").innerText =
+              "Device Error: " + deviceError.message;
+          });
+        } catch (error) {
+          // Catch general connection errors
+          console.error("Connection failed:", error);
+          document.getElementById("statusMessage").innerText =
+            "Failed: " + error.message;
+          resetUI();
+        }
+      }
+
+      function endCall() {
+        if (activeCall) activeCall.disconnect();
+        resetUI();
+      }
+
+      function resetUI() {
+        document.getElementById("statusMessage").innerText = "Call Ended.";
+        document.getElementById("callBtn").style.display = "block";
+        document.getElementById("hangupBtn").style.display = "none";
+      }
+    </script>
+  </body>
+</html>
