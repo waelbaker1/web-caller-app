@@ -36,31 +36,18 @@ app.get('/token', (req, res) => {
     res.json({ token: token.toJwt() });
 });
 
-app.all('/voice', (req, res) => {
-    // Check both body (POST) and query (GET)
-    const params = Object.keys(req.body).length > 0 ? req.body : req.query;
-    console.log('Voice Request Received. Params:', params);
-
-    let destinationNumber = params.To || '';
-
-    const response = new twilio.twiml.VoiceResponse();
-    const myTwilioNumber = '+15414357607'; 
-
-    if (destinationNumber && destinationNumber !== '') {
-        console.log('Dialing Number:', destinationNumber);
-        const dial = response.dial({ callerId: myTwilioNumber });
-        dial.number(destinationNumber);
-    } else {
-        console.log('Destination Number Missing or Empty!');
-        response.say("Connection successful, but phone number is missing.");
-    }
-// ... aapka upar ka dial() wala code ...
+app.post('/voice', (req, res) => {
+    const twiml = new twilio.twiml.VoiceResponse();
     
-    // Ye nayi line Twilio ki cache memory ko disable kar degi
-    res.set('Cache-Control', 'no-cache, no-store, must-revalidate'); 
+    // Put your newly verified personal number here (with the +91 country code)
+    const dial = twiml.dial({
+        callerId: '+918530483318' 
+    });
     
-    res.set('Content-Type', 'text/xml');
-    res.send(response.toString());
+    dial.number(req.body.To);
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
 });
 // Cloud server ka port ya fir testing ke liye 3000
 const port = process.env.PORT || 3000; 
